@@ -1,13 +1,13 @@
-name: UserService CI
+name: Notificationservice CI
 
 on:
   push:
     paths:
-      - 'userservice/**'
+      - 'notificationservice/**'
     branches: [main]
   pull_request:
     paths:
-      - 'userservice/**'
+      - 'notificationservice/**'
     branches: [main]
 
 jobs:
@@ -25,4 +25,4 @@ jobs:
 
       - name: Build with Maven
         run: mvn clean install
-        working-directory: userservice
+        working-directory: notificationservice

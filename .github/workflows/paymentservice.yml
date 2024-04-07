@@ -1,13 +1,13 @@
-name: UserService CI
+name: Paymentservice CI
 
 on:
   push:
     paths:
-      - 'userservice/**'
+      - 'paymentservice/**'
     branches: [main]
   pull_request:
     paths:
-      - 'userservice/**'
+      - 'paymentservice/**'
     branches: [main]
 
 jobs:
@@ -25,4 +25,4 @@ jobs:
 
       - name: Build with Maven
         run: mvn clean install
-        working-directory: userservice
+        working-directory: paymentservice
