@@ -101,4 +101,41 @@ public class Appointment {
 			return new Appointment(this);
 		}
 	}
+
+	public String getId() {
+		return id;
+	}
+
+	public String getDoctorId() {
+		return doctorId;
+	}
+
+	public String getPatientId() {
+		return patientId;
+	}
+
+	public String getServiceType() {
+		return serviceType;
+	}
+
+	public Date getDateTime() {
+		return dateTime;
+	}
+
+	public Date getEndDateTime() {
+		return endDateTime;
+	}
+
+	public AppointmentStatus getStatus() {
+		return status;
+	}
+
+	public String getDetails() {
+		return details;
+	}
+
+	public Payment getPayment() {
+		return payment;
+	}
+
 }

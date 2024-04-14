@@ -15,6 +15,39 @@ public class Payment {
 
 	@Field("details")
 	private PaymentDetails details;
+
+	public PaymentMethod getMethod() {
+		return method;
+	}
+
+	public void setMethod(PaymentMethod method) {
+		this.method = method;
+	}
+
+	public PaymentStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(PaymentStatus status) {
+		this.status = status;
+	}
+
+	public String getPaymentId() {
+		return paymentId;
+	}
+
+	public void setPaymentId(String paymentId) {
+		this.paymentId = paymentId;
+	}
+
+	public PaymentDetails getDetails() {
+		return details;
+	}
+
+	public void setDetails(PaymentDetails details) {
+		this.details = details;
+	}
+
 }
 
 enum PaymentMethod {
