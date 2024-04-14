@@ -1,75 +1,104 @@
 package net.benlamlih.appointmentservice.model;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.util.Date;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-@Document
+@Document(collection = "appointments")
 public class Appointment {
+
 	@Id
 	private String id;
+
+	@Field("doctorId")
 	private String doctorId;
+
+	@Field("patientId")
 	private String patientId;
-	private LocalDate date;
-	private LocalTime startTime;
-	private LocalTime endTime;
-	private String status;
 
-	public String getId() {
-		return id;
+	@Field("serviceType")
+	private String serviceType;
+
+	@Field("dateTime")
+	private Date dateTime;
+
+	@Field("endDateTime")
+	private Date endDateTime;
+
+	@Field("status")
+	private AppointmentStatus status;
+
+	@Field("details")
+	private String details;
+
+	@Field("payment")
+	private Payment payment;
+
+	private Appointment(Builder builder) {
+		this.doctorId = builder.doctorId;
+		this.patientId = builder.patientId;
+		this.serviceType = builder.serviceType;
+		this.dateTime = builder.dateTime;
+		this.endDateTime = builder.endDateTime;
+		this.status = builder.status;
+		this.details = builder.details;
+		this.payment = builder.payment;
 	}
 
-	public void setId(String id) {
-		this.id = id;
-	}
+	public static class Builder {
+		private String doctorId;
+		private String patientId;
+		private String serviceType;
+		private Date dateTime;
+		private Date endDateTime;
+		private AppointmentStatus status;
+		private String details;
+		private Payment payment;
 
-	public String getDoctorId() {
-		return doctorId;
-	}
+		public Builder doctorId(String doctorId) {
+			this.doctorId = doctorId;
+			return this;
+		}
 
-	public void setDoctorId(String doctorId) {
-		this.doctorId = doctorId;
-	}
+		public Builder patientId(String patientId) {
+			this.patientId = patientId;
+			return this;
+		}
 
-	public String getPatientId() {
-		return patientId;
-	}
+		public Builder serviceType(String serviceType) {
+			this.serviceType = serviceType;
+			return this;
+		}
 
-	public void setPatientId(String patientId) {
-		this.patientId = patientId;
-	}
+		public Builder dateTime(Date dateTime) {
+			this.dateTime = dateTime;
+			return this;
+		}
 
-	public LocalDate getDate() {
-		return date;
-	}
+		public Builder endDateTime(Date endDateTime) {
+			this.endDateTime = endDateTime;
+			return this;
+		}
 
-	public void setDate(LocalDate date) {
-		this.date = date;
-	}
+		public Builder status(AppointmentStatus status) {
+			this.status = status;
+			return this;
+		}
 
-	public LocalTime getStartTime() {
-		return startTime;
-	}
+		public Builder details(String details) {
+			this.details = details;
+			return this;
+		}
 
-	public void setStartTime(LocalTime startTime) {
-		this.startTime = startTime;
-	}
+		public Builder payment(Payment payment) {
+			this.payment = payment;
+			return this;
+		}
 
-	public LocalTime getEndTime() {
-		return endTime;
-	}
-
-	public void setEndTime(LocalTime endTime) {
-		this.endTime = endTime;
-	}
-
-	public String getStatus() {
-		return status;
-	}
-
-	public void setStatus(String status) {
-		this.status = status;
+		public Appointment build() {
+			return new Appointment(this);
+		}
 	}
 }

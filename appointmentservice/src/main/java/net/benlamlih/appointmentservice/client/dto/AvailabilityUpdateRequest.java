@@ -1,27 +1,20 @@
-package net.benlamlih.appointmentservice.model;
+package net.benlamlih.appointmentservice.client.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+public class AvailabilityUpdateRequest {
 
-@Document
-public class Availability {
-	@Id
-	private String id;
 	private String doctorId;
 	private LocalDate date;
 	private LocalTime startTime;
 	private LocalTime endTime;
-	private Boolean isAvailable;
 
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
+	public AvailabilityUpdateRequest(String doctorId, LocalDate date2, LocalTime startTime2, LocalTime endTime2) {
+		this.doctorId = doctorId;
+		this.date = date2;
+		this.startTime = startTime2;
+		this.endTime = endTime2;
 	}
 
 	public String getDoctorId() {
@@ -54,14 +47,6 @@ public class Availability {
 
 	public void setEndTime(LocalTime endTime) {
 		this.endTime = endTime;
-	}
-
-	public Boolean isAvailable() {
-		return isAvailable;
-	}
-
-	public void isAvailable(Boolean isAvailable) {
-		this.isAvailable = isAvailable;
 	}
 
 }

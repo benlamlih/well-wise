@@ -1,23 +1,22 @@
 package net.benlamlih.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import net.benlamlih.appointmentservice.client.UserServiceClient;
 import net.benlamlih.appointmentservice.model.Appointment;
-import net.benlamlih.appointmentservice.model.Availability;
+import net.benlamlih.appointmentservice.model.AppointmentStatus;
+import net.benlamlih.appointmentservice.model.Payment;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
-import net.benlamlih.appointmentservice.repository.AvailabilityRepository;
 import net.benlamlih.appointmentservice.service.AppointmentService;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,64 +26,27 @@ class AppointmentServiceTest {
 	private AppointmentRepository appointmentRepository;
 
 	@Mock
-	private AvailabilityRepository availabilityRepository;
+	private UserServiceClient userServiceClient;
 
 	@InjectMocks
 	private AppointmentService appointmentService;
 
 	@Test
-	void testCreateAppointment() {
-		String doctorId = "doctor123";
-		String patientId = "patient123";
+	void bookAppointment() {
+		String doctorId = "1";
+		String patientId = "2";
 		LocalDate date = LocalDate.now();
 		LocalTime startTime = LocalTime.of(10, 0);
 		LocalTime endTime = LocalTime.of(11, 0);
-		Availability availability = new Availability();
-		availability.isAvailable(true);
+		String serviceType = "General Checkup";
+		AppointmentStatus status = AppointmentStatus.PENDING;
+		String details = "Details";
+		Payment payment = new Payment();
 
-		Mockito.when(availabilityRepository.findByDoctorIdAndDateAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
-				Mockito.anyString(), Mockito.any(LocalDate.class), Mockito.any(LocalTime.class),
-				Mockito.any(LocalTime.class))).thenReturn(Optional.of(availability));
+		appointmentService.bookAppointment(doctorId, patientId, date, startTime, endTime, serviceType, status, details,
+				payment);
 
-		Mockito.when(appointmentRepository.existsByDoctorIdAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
-				Mockito.anyString(), Mockito.any(LocalDate.class), Mockito.any(LocalTime.class),
-				Mockito.any(LocalTime.class))).thenReturn(false);
-
-		boolean result = appointmentService.createAppointment(doctorId, patientId, date, startTime, endTime);
-
-		assertTrue(result);
-		Mockito.verify(appointmentRepository).save(Mockito.any(Appointment.class));
+		verify(appointmentRepository).save(any(Appointment.class));
+		verify(userServiceClient).updateDoctorAvailability(doctorId, date, startTime, endTime);
 	}
-
-	@Test
-	void testCancelAppointment() {
-		String appointmentId = "appointment123";
-		Appointment appointment = new Appointment();
-		appointment.setId(appointmentId);
-
-		Mockito.when(appointmentRepository.findById(Mockito.anyString())).thenReturn(Optional.of(appointment));
-
-		boolean result = appointmentService.cancelAppointment(appointmentId);
-
-		assertTrue(result);
-		assertEquals("CANCELLED", appointment.getStatus());
-		Mockito.verify(appointmentRepository).delete(Mockito.any(Appointment.class));
-	}
-
-	@Test
-	void testConfirmAppointment() {
-		String appointmentId = "appointment123";
-		Appointment appointment = new Appointment();
-		appointment.setId(appointmentId);
-
-		Mockito.when(appointmentRepository.findById(Mockito.any())).thenReturn(Optional.of(appointment));
-
-		boolean result = appointmentService.confirmAppointment(appointmentId);
-
-		assertTrue(result);
-		assertEquals("CONFIRMED", appointment.getStatus());
-		Mockito.verify(appointmentRepository).save(Mockito.any(Appointment.class));
-
-	}
-
 }
