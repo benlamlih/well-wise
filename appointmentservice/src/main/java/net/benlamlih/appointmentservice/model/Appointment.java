@@ -102,6 +102,9 @@ public class Appointment {
 		}
 	}
 
+    public Appointment() {
+    }
+
 	public String getId() {
 		return id;
 	}
@@ -136,6 +139,42 @@ public class Appointment {
 
 	public Payment getPayment() {
 		return payment;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public void setDoctorId(String doctorId) {
+		this.doctorId = doctorId;
+	}
+
+	public void setPatientId(String patientId) {
+		this.patientId = patientId;
+	}
+
+	public void setServiceType(String serviceType) {
+		this.serviceType = serviceType;
+	}
+
+	public void setDateTime(Date dateTime) {
+		this.dateTime = dateTime;
+	}
+
+	public void setEndDateTime(Date endDateTime) {
+		this.endDateTime = endDateTime;
+	}
+
+	public void setStatus(AppointmentStatus status) {
+		this.status = status;
+	}
+
+	public void setDetails(String details) {
+		this.details = details;
+	}
+
+	public void setPayment(Payment payment) {
+		this.payment = payment;
 	}
 
 }

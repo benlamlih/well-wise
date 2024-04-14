@@ -50,10 +50,6 @@ public class Payment {
 
 }
 
-enum PaymentMethod {
-	ONLINE, PHYSICAL;
-}
-
 enum PaymentStatus {
 	PENDING, PAID, FAILED;
 }
