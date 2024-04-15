@@ -1,5 +1,8 @@
 package net.benlamlih.appointmentservice.model;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Date;
 
 import org.springframework.data.annotation.Id;
@@ -175,5 +178,23 @@ public class Appointment {
 
     public void setPayment(Payment payment) {
         this.payment = payment;
+    }
+
+    public LocalTime getStartTime() {
+        return convertToLocalTimeViaInstant(dateTime);
+    }
+
+    public LocalTime getEndTime() {
+        return convertToLocalTimeViaInstant(endDateTime);
+    }
+
+    public LocalDate getLocaleDate() {
+        return dateTime.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private LocalTime convertToLocalTimeViaInstant(Date dateToConvert) {
+        return dateToConvert.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalTime();
     }
 }
