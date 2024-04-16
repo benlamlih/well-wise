@@ -45,41 +45,94 @@ public class AppointmentService {
     }
 
     public boolean bookAppointment(AppointmentRequest request) {
-        String doctorId = request.getDoctorId();
-        String patientId = request.getPatientId();
-
-        logger.info("Booking appointment for doctorId: {}, patientId: {}", doctorId, patientId);
+        logger.info("Booking appointment for doctorId: {}, patientId: {}", request.getDoctorId(),
+                request.getPatientId());
         try {
             Appointment appointment = createAppointment(request);
-
-            LocalDate date = request.getDate();
-            LocalTime startTime = request.getStartTime();
-            LocalTime endTime = request.getEndTime();
-            userServiceClient.updateDoctorAvailability(doctorId, date, startTime, endTime, false);
-            logger.info("Updated doctor availability for doctorId: {} to be set to false", doctorId);
-
+            updateDoctorAvailability(appointment.getDoctorId(), request.getDate(),
+                    request.getStartTime(), request.getEndTime(), false);
             appointmentRepository.save(appointment);
-            logger.info("Appointment saved with status: {}", appointment.getStatus());
-
-            Payment payment = request.getPayment();
-            if (PaymentMethod.ONLINE.equals(payment.getMethod())) {
-                sendPaymentRequest(payment);
-            }
-
+            logger.info("Appointment booked and saved with status: {}", appointment.getStatus());
+            handlePayment(request.getPayment());
             return true;
         } catch (Exception e) {
-            logger.error("Failed to book appointment for doctorId: {}, patientId: {}, error: {}", doctorId, patientId,
-                    e.getMessage());
+            logger.error("Failed to book appointment: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    public boolean rescheduleAppointment(String appointmentId, AppointmentRequest newRequest) {
+        logger.info("Rescheduling appointment with ID: {}", appointmentId);
+        try {
+            Appointment appointment = fetchAppointment(appointmentId);
+            freeUpDoctorAvailability(appointment);
+            updateAppointmentDetails(appointment, newRequest);
+            updateDoctorAvailability(appointment.getDoctorId(), newRequest.getDate(),
+                    newRequest.getStartTime(), newRequest.getEndTime(), false);
+            appointmentRepository.save(appointment);
+            logger.info("Appointment rescheduled successfully for ID: {}", appointmentId);
+            handlePayment(newRequest.getPayment());
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to reschedule appointment ID {}: {}", appointmentId, e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean cancelAppointment(String appointmentId, String cancelledBy, String reason) {
+        logger.info("Cancelling appointment with ID: {}", appointmentId);
+        try {
+            Appointment appointment = fetchAppointment(appointmentId);
+            freeUpDoctorAvailability(appointment);
+            appointment.setStatus(AppointmentStatus.CANCELLED);
+            appointmentRepository.save(appointment);
+            sendCancellationRequest(new CancellationMessage(appointmentId, cancelledBy, Instant.now(), reason));
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to cancel appointment ID {}: {}", appointmentId, e.getMessage());
+            return false;
+        }
+    }
+
+    private void freeUpDoctorAvailability(Appointment appointment) {
+        userServiceClient.updateDoctorAvailability(appointment.getDoctorId(), appointment.getLocaleDate(),
+                appointment.getStartTime(), appointment.getEndTime(), true);
+    }
+
+    private void updateAppointmentDetails(Appointment appointment, AppointmentRequest newRequest) {
+        appointment.setDateTime(toDate(newRequest.getStartTime(), newRequest.getDate()));
+        appointment.setEndDateTime(toDate(newRequest.getEndTime(), newRequest.getDate()));
+        appointment.setServiceType(newRequest.getServiceType());
+        appointment.setDetails(newRequest.getDetails());
+        appointment.setPayment(newRequest.getPayment());
+        appointment.setStatus(determineStatus(newRequest.getPayment()));
+    }
+
+    private Appointment fetchAppointment(String appointmentId) {
+        return appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new IllegalStateException("No appointment found with ID: " + appointmentId));
+    }
+
+    private void handlePayment(Payment payment) {
+        if (PaymentMethod.ONLINE.equals(payment.getMethod())) {
+            sendPaymentRequest(payment);
+        }
+    }
+
+    private void sendPaymentRequest(Payment payment) {
+        kafkaTemplate.send("payment-request-topic", payment);
+        logger.info("Payment request sent for payment method online.");
+    }
+
+    private void sendCancellationRequest(CancellationMessage cancellationMessage) {
+        kafkaTemplate.send("cancellation-topic", cancellationMessage);
+        logger.info("Cancellation message sent for Appointment ID: {}", cancellationMessage.getAppointmentId());
     }
 
     private Appointment createAppointment(AppointmentRequest request) {
         Date startDateTime = toDate(request.getStartTime(), request.getDate());
         Date endDateTime = toDate(request.getEndTime(), request.getDate());
-
         AppointmentStatus status = determineStatus(request.getPayment());
-
         return new Appointment.Builder()
                 .doctorId(request.getDoctorId())
                 .patientId(request.getPatientId())
@@ -92,42 +145,30 @@ public class AppointmentService {
                 .build();
     }
 
-    private void sendPaymentRequest(Payment payment) {
-        kafkaTemplate.send("payment-request-topic", payment);
-        logger.info("Online payment processed and sent to Kafka topic");
+    private void updateDoctorAvailability(String doctorId, LocalDate date, LocalTime startTime, LocalTime endTime,
+            boolean available) {
+        userServiceClient.updateDoctorAvailability(doctorId, date, startTime, endTime, available);
+        logger.info("Doctor availability updated for doctorId: {} to {}", doctorId, available ? "free" : "busy");
     }
 
-    public boolean cancelAppointment(String appointmentId, String cancelledBy, String reason) {
-        logger.info("Cancelling appointment with ID: {}", appointmentId);
-
-        try {
-            Appointment appointment = fetchAppointment(appointmentId);
-
-            appointment.setStatus(AppointmentStatus.CANCELLED);
-            appointmentRepository.save(appointment);
-            logger.info("Appointment status updated to CANCELLED for ID: {}", appointmentId);
-
-            CancellationMessage cancellationMessage = new CancellationMessage(appointmentId, cancelledBy, Instant.now(),
-                    reason);
-            sendCancellationRequest(cancellationMessage, appointmentId);
-
-            String doctorId = appointment.getDoctorId();
-            userServiceClient.updateDoctorAvailability(doctorId, appointment.getLocaleDate(),
-                    appointment.getStartTime(), appointment.getEndTime(), true);
-            logger.info("Updated doctor availability for doctorId: {} to be set to true", doctorId);
-
-            return true;
-        } catch (Exception e) {
-            logger.error("Error cancelling appointment ID {}: {}", appointmentId, e.getMessage());
-            return false;
-        }
+    private AppointmentStatus determineStatus(Payment payment) {
+        return PaymentMethod.ONLINE.equals(payment.getMethod()) ? AppointmentStatus.PENDING
+                : AppointmentStatus.CONFIRMED;
     }
 
-    private void sendCancellationRequest(CancellationMessage cancellationMessage, String appointmentId) {
-        kafkaTemplate.send("cancellation-topic", cancellationMessage);
-        logger.info("Cancellation message sent for Appointment ID: {}", appointmentId);
+    public List<AppointmentResponse> getAllAppointments() {
+        List<Appointment> appointments = appointmentRepository.findAll();
+        return appointments.stream().map(AppointmentMapper.INSTANCE::appointmentToAppointmentResponse)
+                .collect(Collectors.toList());
     }
 
+    /**
+     * Handles the payment result and updates the appointment status accordingly.
+     * Callback method for payment service.
+     * 
+     * @param paymentResult Payment result
+     * @return true if the payment status was updated successfully, false otherwise
+     */
     public boolean handlePaymentUpdate(PaymentResult paymentResult) {
         try {
             Appointment appointment = fetchAppointment(paymentResult.getAppointmentId());
@@ -148,22 +189,5 @@ public class AppointmentService {
                     e.getMessage());
             return false;
         }
-    }
-
-    private Appointment fetchAppointment(String appointmentId) {
-        return appointmentRepository.findById(appointmentId).orElseThrow(() -> new IllegalStateException(
-                "No appointment found with ID: " + appointmentId));
-    }
-
-    private AppointmentStatus determineStatus(Payment payment) {
-        return PaymentMethod.ONLINE.equals(payment.getMethod()) ? AppointmentStatus.PENDING
-                : AppointmentStatus.CONFIRMED;
-    }
-
-    public List<AppointmentResponse> getAllAppointments() {
-        List<Appointment> appointments = appointmentRepository.findAll();
-        logger.info("Fetched all appointments");
-        return appointments.stream().map(AppointmentMapper.INSTANCE::appointmentToAppointmentResponse)
-                .collect(Collectors.toList());
     }
 }
