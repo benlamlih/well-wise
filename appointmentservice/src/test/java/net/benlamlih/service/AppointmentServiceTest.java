@@ -1,12 +1,22 @@
 package net.benlamlih.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Date;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,11 +27,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import net.benlamlih.appointmentservice.client.UserServiceClient;
+import net.benlamlih.appointmentservice.dto.AppointmentRequest;
 import net.benlamlih.appointmentservice.model.Appointment;
 import net.benlamlih.appointmentservice.model.AppointmentStatus;
 import net.benlamlih.appointmentservice.model.CancellationMessage;
+import net.benlamlih.appointmentservice.model.Payment;
+import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
 import net.benlamlih.appointmentservice.service.AppointmentService;
+import net.benlamlih.appointmentservice.util.DateTimeUtil;
 
 @ExtendWith(MockitoExtension.class)
 class AppointmentServiceTest {
@@ -44,6 +58,55 @@ class AppointmentServiceTest {
     @Captor
     private ArgumentCaptor<CancellationMessage> cancellationMessageCaptor;
 
+    private Payment payment;
+    private AppointmentRequest request;
+
+    @BeforeEach
+    void setUp() {
+        this.payment = new Payment();
+        this.payment.setMethod(PaymentMethod.ONLINE);
+
+        this.request = new AppointmentRequest();
+        this.request.setDoctorId("doctor123");
+        this.request.setPatientId("patient123");
+        this.request.setDate(LocalDate.now());
+        this.request.setStartTime(LocalTime.now());
+        this.request.setEndTime(LocalTime.now().plusHours(1));
+        this.request.setPayment(payment);
+    }
+
+    @Test
+    public void testBookAppointmentSuccess() {
+        when(appointmentRepository.save(any(Appointment.class))).thenReturn(new Appointment());
+        boolean result = appointmentService.bookAppointment(this.request);
+
+        assertTrue(result);
+        verify(appointmentRepository).save(any(Appointment.class));
+        verify(userServiceClient).updateDoctorAvailability(eq("doctor123"), any(LocalDate.class), any(LocalTime.class),
+                any(LocalTime.class), eq(false));
+        verify(kafkaTemplate).send(eq("payment-request-topic"), any(Payment.class));
+    }
+
+    @Test
+    public void testBookAppointmentFailureOnSave() {
+        doThrow(new RuntimeException("DB error")).when(appointmentRepository).save(any(Appointment.class));
+        boolean result = appointmentService.bookAppointment(this.request);
+        assertFalse(result);
+        verify(appointmentRepository).save(any(Appointment.class));
+    }
+
+    @Test
+    public void testBookAppointmentFailure() {
+        doThrow(new RuntimeException("Service unavailable")).when(userServiceClient)
+                .updateDoctorAvailability(eq("doctor123"), any(LocalDate.class), any(LocalTime.class),
+                        any(LocalTime.class), anyBoolean());
+
+        boolean result = appointmentService.bookAppointment(this.request);
+
+        assertFalse(result);
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+    }
+
     @Test
     void cancelAppointment() {
         String appointmentId = "123";
@@ -52,13 +115,21 @@ class AppointmentServiceTest {
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
         appointment.setStatus(AppointmentStatus.CONFIRMED);
+        appointment.setDoctorId("doctor123");
+
+        Date startDateTime = DateTimeUtil.toDate(LocalTime.now(), LocalDate.now());
+        Date endDateTime = DateTimeUtil.toDate(LocalTime.now().plusHours(1), LocalDate.now());
+        appointment.setDateTime(startDateTime);
+        appointment.setEndDateTime(endDateTime);
 
         when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
 
-        appointmentService.cancelAppointment(appointmentId, cancelledBy, reason);
+        boolean result = appointmentService.cancelAppointment(appointmentId, cancelledBy, reason);
 
         verify(appointmentRepository).save(appointmentCaptor.capture());
         assertEquals(AppointmentStatus.CANCELLED, appointmentCaptor.getValue().getStatus());
         verify(kafkaTemplate).send(eq("cancellation-topic"), cancellationMessageCaptor.capture());
+        assertTrue(result);
     }
+
 }
