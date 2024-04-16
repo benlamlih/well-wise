@@ -3,9 +3,6 @@ package net.benlamlih.appointmentservice.client.dto;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-/**
- * 
- */
 public class AvailabilityUpdateRequest {
 
     private String doctorId;

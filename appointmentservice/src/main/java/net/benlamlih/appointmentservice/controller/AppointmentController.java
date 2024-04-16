@@ -44,16 +44,7 @@ public class AppointmentController {
                 request.getDoctorId(),
                 request.getPatientId());
 
-        boolean result = appointmentService.bookAppointment(
-                request.getDoctorId(),
-                request.getPatientId(),
-                request.getDate(),
-                request.getStartTime(),
-                request.getEndTime(),
-                request.getServiceType(),
-                request.getDetails(),
-                request.getPayment());
-
+        boolean result = appointmentService.bookAppointment(request);
         if (result) {
             logger.info(
                     "Appointment booked successfully for doctorId: {}, patientId: {}",

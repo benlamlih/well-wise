@@ -1,8 +1,10 @@
 package net.benlamlih.appointmentservice.model;
 
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.convertToLocalTimeViaInstant;
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.toLocalDate;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.Date;
 
 import org.springframework.data.annotation.Id;
@@ -189,12 +191,7 @@ public class Appointment {
     }
 
     public LocalDate getLocaleDate() {
-        return dateTime.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        return toLocalDate(dateTime);
     }
 
-    private LocalTime convertToLocalTimeViaInstant(Date dateToConvert) {
-        return dateToConvert.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalTime();
-    }
 }

@@ -1,5 +1,7 @@
 package net.benlamlih.appointmentservice.service;
 
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.toDate;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -10,11 +12,12 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import net.benlamlih.appointmentservice.client.UserServiceClient;
+import net.benlamlih.appointmentservice.dto.AppointmentRequest;
 import net.benlamlih.appointmentservice.dto.AppointmentResponse;
 import net.benlamlih.appointmentservice.dto.mapper.AppointmentMapper;
 import net.benlamlih.appointmentservice.model.Appointment;
@@ -24,8 +27,10 @@ import net.benlamlih.appointmentservice.model.Payment;
 import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.model.PaymentResult;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
+import net.benlamlih.appointmentservice.util.DateTimeUtil;
 
 @Service
+@Transactional
 public class AppointmentService {
 
     private static final Logger logger = LoggerFactory.getLogger(AppointmentService.class);
@@ -34,7 +39,6 @@ public class AppointmentService {
     private final UserServiceClient userServiceClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Autowired
     public AppointmentService(AppointmentRepository appointmentRepository, UserServiceClient userServiceClient,
             KafkaTemplate<String, Object> kafkaTemplate) {
         this.appointmentRepository = appointmentRepository;
@@ -42,38 +46,51 @@ public class AppointmentService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public boolean bookAppointment(String doctorId, String patientId, LocalDate date, LocalTime startTime,
-            LocalTime endTime, String serviceType, String details, Payment payment) {
+    public boolean bookAppointment(AppointmentRequest request) {
+        String doctorId = request.getDoctorId();
+        String patientId = request.getPatientId();
+
         logger.info("Booking appointment for doctorId: {}, patientId: {}", doctorId, patientId);
         try {
-            Appointment appointment = createAppointment(doctorId, patientId, date, startTime, endTime, serviceType,
-                    details, payment);
+            Appointment appointment = createAppointment(request);
 
+            LocalDate date = request.getDate();
+            LocalTime startTime = request.getStartTime();
+            LocalTime endTime = request.getEndTime();
             userServiceClient.updateDoctorAvailability(doctorId, date, startTime, endTime, false);
             logger.info("Updated doctor availability for doctorId: {} to be set to false", doctorId);
 
             appointmentRepository.save(appointment);
             logger.info("Appointment saved with status: {}", appointment.getStatus());
 
+            Payment payment = request.getPayment();
             if (PaymentMethod.ONLINE.equals(payment.getMethod())) {
                 sendPaymentRequest(payment);
             }
 
             return true;
         } catch (Exception e) {
-            logger.error("Failed to book appointment: {}", e.getMessage());
+            logger.error("Failed to book appointment for doctorId: {}, patientId: {}, error: {}", doctorId, patientId,
+                    e.getMessage());
             return false;
         }
     }
 
-    private Appointment createAppointment(String doctorId, String patientId, LocalDate date, LocalTime startTime,
-            LocalTime endTime, String serviceType, String details, Payment payment) {
-        Date startDateTime = Date.from(startTime.atDate(date).atZone(ZoneId.systemDefault()).toInstant());
-        Date endDateTime = Date.from(endTime.atDate(date).atZone(ZoneId.systemDefault()).toInstant());
-        AppointmentStatus status = determineStatus(payment);
+    private Appointment createAppointment(AppointmentRequest request) {
+        Date startDateTime = toDate(request.getStartTime(), request.getDate());
+        Date endDateTime = toDate(request.getEndTime(), request.getDate());
 
-        return new Appointment.Builder().doctorId(doctorId).patientId(patientId).serviceType(serviceType)
-                .dateTime(startDateTime).endDateTime(endDateTime).status(status).details(details).payment(payment)
+        AppointmentStatus status = determineStatus(request.getPayment());
+
+        return new Appointment.Builder()
+                .doctorId(request.getDoctorId())
+                .patientId(request.getPatientId())
+                .serviceType(request.getServiceType())
+                .dateTime(startDateTime)
+                .endDateTime(endDateTime)
+                .status(status)
+                .details(request.getDetails())
+                .payment(request.getPayment())
                 .build();
     }
 
@@ -86,8 +103,7 @@ public class AppointmentService {
         logger.info("Cancelling appointment with ID: {}", appointmentId);
 
         try {
-            Appointment appointment = appointmentRepository.findById(appointmentId)
-                    .orElseThrow(() -> new IllegalStateException("Appointment not found with ID: " + appointmentId));
+            Appointment appointment = fetchAppointment(appointmentId);
 
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointmentRepository.save(appointment);
@@ -116,9 +132,7 @@ public class AppointmentService {
 
     public boolean handlePaymentUpdate(PaymentResult paymentResult) {
         try {
-            Appointment appointment = appointmentRepository.findById(paymentResult.getAppointmentId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "No appointment found with ID: " + paymentResult.getAppointmentId()));
+            Appointment appointment = fetchAppointment(paymentResult.getAppointmentId());
 
             if (paymentResult.isSuccess()) {
                 appointment.setStatus(AppointmentStatus.CONFIRMED);
@@ -136,6 +150,11 @@ public class AppointmentService {
                     e.getMessage());
             return false;
         }
+    }
+
+    private Appointment fetchAppointment(String appointmentId) {
+        return appointmentRepository.findById(appointmentId).orElseThrow(() -> new IllegalStateException(
+                "No appointment found with ID: " + appointmentId));
     }
 
     private AppointmentStatus determineStatus(Payment payment) {
