@@ -1,7 +1,7 @@
 package net.benlamlih.appointmentservice.model;
 
-import static net.benlamlih.appointmentservice.util.DateTimeUtil.convertToLocalTimeViaInstant;
 import static net.benlamlih.appointmentservice.util.DateTimeUtil.toLocalDate;
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.toLocalTime;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -183,11 +183,11 @@ public class Appointment {
     }
 
     public LocalTime getStartTime() {
-        return convertToLocalTimeViaInstant(dateTime);
+        return toLocalTime(dateTime);
     }
 
     public LocalTime getEndTime() {
-        return convertToLocalTimeViaInstant(endDateTime);
+        return toLocalTime(endDateTime);
     }
 
     public LocalDate getLocaleDate() {

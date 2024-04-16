@@ -23,8 +23,4 @@ public class DateTimeUtil {
     public static LocalTime toLocalTime(Date date) {
         return date.toInstant().atZone(SYSTEM_DEFAULT_ZONE).toLocalTime();
     }
-
-    public static LocalTime convertToLocalTimeViaInstant(Date dateToConvert) {
-        return toLocalTime(dateToConvert);
-    }
 }
