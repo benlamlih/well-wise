@@ -20,11 +20,11 @@ public class UserServiceClient {
     }
 
     public void updateDoctorAvailability(
-            String doctorId, LocalDate date, LocalTime startTime, LocalTime endTime) {
+            String doctorId, LocalDate date, LocalTime startTime, LocalTime endTime, Boolean available) {
         String userServiceUrl = "http://userservice/availability/update";
         restTemplate.postForObject(
                 userServiceUrl,
-                new AvailabilityUpdateRequest(doctorId, date, startTime, endTime),
+                new AvailabilityUpdateRequest(doctorId, date, startTime, endTime, available),
                 Void.class);
     }
 }

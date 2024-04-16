@@ -1,3 +1,9 @@
+# Build or Update the service's Docker image using the following command (Buildpacks):
+
+```bash
+mvn spring-boot:build-image -Dspring-boot.build-image.appointmentservice=appointmentservice
+```
+
 # Document Structure (Appointments):
 
 ```json

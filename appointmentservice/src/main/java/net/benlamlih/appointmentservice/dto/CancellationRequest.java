@@ -5,7 +5,6 @@ public class CancellationRequest {
     private String cancelledBy;
     private String reason;
 
-    // Getters and setters
     public String getAppointmentId() {
         return appointmentId;
     }

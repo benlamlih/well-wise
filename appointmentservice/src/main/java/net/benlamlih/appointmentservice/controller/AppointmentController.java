@@ -1,16 +1,20 @@
 package net.benlamlih.appointmentservice.controller;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.benlamlih.appointmentservice.dto.AppointmentRequest;
+import net.benlamlih.appointmentservice.dto.AppointmentResponse;
 import net.benlamlih.appointmentservice.dto.CancellationRequest;
 import net.benlamlih.appointmentservice.service.AppointmentService;
 
@@ -26,22 +30,21 @@ public class AppointmentController {
         this.appointmentService = appointmentService;
     }
 
+    @GetMapping
+    public ResponseEntity<List<AppointmentResponse>> getAllAppointments() {
+        logger.info("Fetching all appointments");
+        List<AppointmentResponse> appointments = appointmentService.getAllAppointments();
+        return ResponseEntity.ok(appointments);
+    }
+
     @PostMapping
     public ResponseEntity<String> bookAppointment(@RequestBody AppointmentRequest request) {
         logger.info(
                 "Attempting to book appointment for doctorId: {}, patientId: {}",
                 request.getDoctorId(),
                 request.getPatientId());
-        boolean result = appointmentService.bookAppointment(
-                request.getDoctorId(),
-                request.getPatientId(),
-                request.getDate(),
-                request.getStartTime(),
-                request.getEndTime(),
-                request.getServiceType(),
-                request.getDetails(),
-                request.getPayment());
 
+        boolean result = appointmentService.bookAppointment(request);
         if (result) {
             logger.info(
                     "Appointment booked successfully for doctorId: {}, patientId: {}",

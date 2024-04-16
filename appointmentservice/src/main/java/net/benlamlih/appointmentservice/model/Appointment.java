@@ -1,5 +1,10 @@
 package net.benlamlih.appointmentservice.model;
 
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.convertToLocalTimeViaInstant;
+import static net.benlamlih.appointmentservice.util.DateTimeUtil.toLocalDate;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
 
 import org.springframework.data.annotation.Id;
@@ -176,4 +181,17 @@ public class Appointment {
     public void setPayment(Payment payment) {
         this.payment = payment;
     }
+
+    public LocalTime getStartTime() {
+        return convertToLocalTimeViaInstant(dateTime);
+    }
+
+    public LocalTime getEndTime() {
+        return convertToLocalTimeViaInstant(endDateTime);
+    }
+
+    public LocalDate getLocaleDate() {
+        return toLocalDate(dateTime);
+    }
+
 }

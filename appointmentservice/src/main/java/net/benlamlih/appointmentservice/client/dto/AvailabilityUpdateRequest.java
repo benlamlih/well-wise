@@ -9,13 +9,15 @@ public class AvailabilityUpdateRequest {
     private LocalDate date;
     private LocalTime startTime;
     private LocalTime endTime;
+    private Boolean available;
 
     public AvailabilityUpdateRequest(
-            String doctorId, LocalDate date2, LocalTime startTime2, LocalTime endTime2) {
+            String doctorId, LocalDate date2, LocalTime startTime2, LocalTime endTime2, Boolean available) {
         this.doctorId = doctorId;
         this.date = date2;
         this.startTime = startTime2;
         this.endTime = endTime2;
+        this.available = available;
     }
 
     public String getDoctorId() {
@@ -49,4 +51,13 @@ public class AvailabilityUpdateRequest {
     public void setEndTime(LocalTime endTime) {
         this.endTime = endTime;
     }
+
+    public Boolean getAvailable() {
+        return available;
+    }
+
+    public void setAvailable(Boolean available) {
+        this.available = available;
+    }
+
 }
