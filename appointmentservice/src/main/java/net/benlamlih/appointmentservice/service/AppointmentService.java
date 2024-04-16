@@ -5,7 +5,6 @@ import static net.benlamlih.appointmentservice.util.DateTimeUtil.toDate;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,7 +26,6 @@ import net.benlamlih.appointmentservice.model.Payment;
 import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.model.PaymentResult;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
-import net.benlamlih.appointmentservice.util.DateTimeUtil;
 
 @Service
 @Transactional

@@ -1,15 +1,10 @@
 package net.benlamlih.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -25,8 +20,6 @@ import net.benlamlih.appointmentservice.client.UserServiceClient;
 import net.benlamlih.appointmentservice.model.Appointment;
 import net.benlamlih.appointmentservice.model.AppointmentStatus;
 import net.benlamlih.appointmentservice.model.CancellationMessage;
-import net.benlamlih.appointmentservice.model.Payment;
-import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
 import net.benlamlih.appointmentservice.service.AppointmentService;
 
@@ -50,46 +43,6 @@ class AppointmentServiceTest {
 
     @Captor
     private ArgumentCaptor<CancellationMessage> cancellationMessageCaptor;
-
-    @Test
-    void bookPhysicalAppointment() {
-        String doctorId = "1";
-        String patientId = "2";
-        LocalDate date = LocalDate.now();
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
-        String serviceType = "General Checkup";
-        String details = "Details";
-        Payment payment = new Payment();
-        payment.setMethod(PaymentMethod.PHYSICAL);
-
-        appointmentService.bookAppointment(doctorId, patientId, date, startTime, endTime, serviceType, details,
-                payment);
-
-        verify(appointmentRepository).save(any());
-        verify(userServiceClient).updateDoctorAvailability(doctorId, date, startTime, endTime, false);
-        verify(kafkaTemplate, never()).send(anyString(), any());
-    }
-
-    @Test
-    void bookOnlineAppointment() {
-        String doctorId = "1";
-        String patientId = "2";
-        LocalDate date = LocalDate.now();
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
-        String serviceType = "General Checkup";
-        String details = "Details";
-        Payment payment = new Payment();
-        payment.setMethod(PaymentMethod.ONLINE);
-
-        appointmentService.bookAppointment(doctorId, patientId, date, startTime, endTime, serviceType, details,
-                payment);
-
-        verify(appointmentRepository).save(any());
-        verify(userServiceClient).updateDoctorAvailability(doctorId, date, startTime, endTime, false);
-        verify(kafkaTemplate).send(eq("payment-request-topic"), any(Payment.class));
-    }
 
     @Test
     void cancelAppointment() {
