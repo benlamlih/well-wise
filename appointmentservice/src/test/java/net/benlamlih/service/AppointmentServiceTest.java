@@ -58,41 +58,68 @@ class AppointmentServiceTest {
     @Captor
     private ArgumentCaptor<CancellationMessage> cancellationMessageCaptor;
 
-    private Payment payment;
-    private AppointmentRequest request;
+    private Payment onlinePayment;
+    private Payment physicalPayment;
+    private AppointmentRequest onlineRequest;
+    private AppointmentRequest physicalRequest;
 
     @BeforeEach
     void setUp() {
-        this.payment = new Payment();
-        this.payment.setMethod(PaymentMethod.ONLINE);
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
 
-        this.request = new AppointmentRequest();
-        this.request.setDoctorId("doctor123");
-        this.request.setPatientId("patient123");
-        this.request.setDate(LocalDate.now());
-        this.request.setStartTime(LocalTime.now());
-        this.request.setEndTime(LocalTime.now().plusHours(1));
-        this.request.setPayment(payment);
+        this.onlinePayment = new Payment();
+        this.onlinePayment.setMethod(PaymentMethod.ONLINE);
+
+        this.physicalPayment = new Payment();
+        this.physicalPayment.setMethod(PaymentMethod.PHYSICAL);
+
+        this.onlineRequest = createAppointmentRequest("doctor123", "patient123", today, now, onlinePayment);
+        this.physicalRequest = createAppointmentRequest("doctor124", "patient124", today, now, physicalPayment);
+    }
+
+    private AppointmentRequest createAppointmentRequest(String doctorId, String patientId, LocalDate date,
+            LocalTime startTime, Payment payment) {
+        AppointmentRequest request = new AppointmentRequest();
+        request.setDoctorId(doctorId);
+        request.setPatientId(patientId);
+        request.setDate(date);
+        request.setStartTime(startTime);
+        request.setEndTime(startTime.plusHours(1));
+        request.setPayment(payment);
+        return request;
     }
 
     @Test
     public void testBookAppointmentSuccess() {
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(new Appointment());
-        boolean result = appointmentService.bookAppointment(this.request);
+        boolean result = appointmentService.bookAppointment(this.onlineRequest);
 
-        assertTrue(result);
         verify(appointmentRepository).save(any(Appointment.class));
         verify(userServiceClient).updateDoctorAvailability(eq("doctor123"), any(LocalDate.class), any(LocalTime.class),
                 any(LocalTime.class), eq(false));
         verify(kafkaTemplate).send(eq("payment-request-topic"), any(Payment.class));
+        assertTrue(result);
+    }
+
+    @Test
+    public void testPhysicalPaymentBookAppointmentSuccess() {
+        when(appointmentRepository.save(any(Appointment.class))).thenReturn(new Appointment());
+        boolean result = appointmentService.bookAppointment(this.physicalRequest);
+
+        verify(appointmentRepository).save(any(Appointment.class));
+        verify(userServiceClient).updateDoctorAvailability(eq("doctor124"), any(LocalDate.class), any(LocalTime.class),
+                any(LocalTime.class), eq(false));
+        verify(kafkaTemplate, never()).send(eq("payment-request-topic"), any(Payment.class));
+        assertTrue(result);
     }
 
     @Test
     public void testBookAppointmentFailureOnSave() {
         doThrow(new RuntimeException("DB error")).when(appointmentRepository).save(any(Appointment.class));
-        boolean result = appointmentService.bookAppointment(this.request);
-        assertFalse(result);
+        boolean result = appointmentService.bookAppointment(this.onlineRequest);
         verify(appointmentRepository).save(any(Appointment.class));
+        assertFalse(result);
     }
 
     @Test
@@ -101,10 +128,10 @@ class AppointmentServiceTest {
                 .updateDoctorAvailability(eq("doctor123"), any(LocalDate.class), any(LocalTime.class),
                         any(LocalTime.class), anyBoolean());
 
-        boolean result = appointmentService.bookAppointment(this.request);
+        boolean result = appointmentService.bookAppointment(this.onlineRequest);
 
-        assertFalse(result);
         verify(appointmentRepository, never()).save(any(Appointment.class));
+        assertFalse(result);
     }
 
     @Test
