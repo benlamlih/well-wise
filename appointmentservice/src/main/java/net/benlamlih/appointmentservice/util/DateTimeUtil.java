@@ -1,6 +1,7 @@
 package net.benlamlih.appointmentservice.util;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -22,5 +23,9 @@ public class DateTimeUtil {
 
     public static LocalTime toLocalTime(Date date) {
         return date.toInstant().atZone(SYSTEM_DEFAULT_ZONE).toLocalTime();
+    }
+
+    public static LocalDateTime toLocalDateTime(Date dateToConvert) {
+        return dateToConvert.toInstant().atZone(SYSTEM_DEFAULT_ZONE).toLocalDateTime();
     }
 }

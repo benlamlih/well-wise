@@ -22,6 +22,8 @@ import net.benlamlih.appointmentservice.dto.mapper.AppointmentMapper;
 import net.benlamlih.appointmentservice.model.Appointment;
 import net.benlamlih.appointmentservice.model.AppointmentStatus;
 import net.benlamlih.appointmentservice.model.CancellationMessage;
+import net.benlamlih.appointmentservice.model.EventType;
+import net.benlamlih.appointmentservice.model.NotificationEvent;
 import net.benlamlih.appointmentservice.model.Payment;
 import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.model.PaymentResult;
@@ -49,11 +51,12 @@ public class AppointmentService {
                 request.getPatientId());
         try {
             Appointment appointment = createAppointment(request);
-            updateDoctorAvailability(appointment.getDoctorId(), request.getDate(),
-                    request.getStartTime(), request.getEndTime(), false);
+            updateDoctorAvailability(appointment.getDoctorId(), request.getDate(), request.getStartTime(),
+                    request.getEndTime(), false);
             appointmentRepository.save(appointment);
             logger.info("Appointment booked and saved with status: {}", appointment.getStatus());
             handlePayment(request.getPayment());
+            sendNotification(createNotificationEvent(appointment, EventType.BOOKED));
             return true;
         } catch (Exception e) {
             logger.error("Failed to book appointment: {}", e.getMessage(), e);
@@ -65,13 +68,17 @@ public class AppointmentService {
         logger.info("Rescheduling appointment with ID: {}", appointmentId);
         try {
             Appointment appointment = fetchAppointment(appointmentId);
+
             freeUpDoctorAvailability(appointment);
             updateAppointmentDetails(appointment, newRequest);
             updateDoctorAvailability(appointment.getDoctorId(), newRequest.getDate(),
                     newRequest.getStartTime(), newRequest.getEndTime(), false);
             appointmentRepository.save(appointment);
+
             logger.info("Appointment rescheduled successfully for ID: {}", appointmentId);
             handlePayment(newRequest.getPayment());
+            sendNotification(createNotificationEvent(appointment, EventType.RESCHEDULED));
+
             return true;
         } catch (Exception e) {
             logger.error("Failed to reschedule appointment ID {}: {}", appointmentId, e.getMessage());
@@ -87,6 +94,7 @@ public class AppointmentService {
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointmentRepository.save(appointment);
             sendCancellationRequest(new CancellationMessage(appointmentId, cancelledBy, Instant.now(), reason));
+            sendNotification(createNotificationEvent(appointment, EventType.CANCELLED));
             return true;
         } catch (Exception e) {
             logger.error("Failed to cancel appointment ID {}: {}", appointmentId, e.getMessage());
@@ -129,6 +137,11 @@ public class AppointmentService {
         logger.info("Cancellation message sent for Appointment ID: {}", cancellationMessage.getAppointmentId());
     }
 
+    private void sendNotification(NotificationEvent event) {
+        kafkaTemplate.send("notification-topic", event);
+        logger.info("Notification sent for event: {}", event.getEventType());
+    }
+
     private Appointment createAppointment(AppointmentRequest request) {
         Date startDateTime = toDate(request.getStartTime(), request.getDate());
         Date endDateTime = toDate(request.getEndTime(), request.getDate());
@@ -142,6 +155,16 @@ public class AppointmentService {
                 .status(status)
                 .details(request.getDetails())
                 .payment(request.getPayment())
+                .build();
+    }
+
+    private NotificationEvent createNotificationEvent(Appointment appointment, EventType eventType) {
+        return new NotificationEvent.Builder()
+                .withAppointmentId(appointment.getId())
+                .withDoctorId(appointment.getDoctorId())
+                .withPatientId(appointment.getPatientId())
+                .withEventType(eventType)
+                .withMessage("Your appointment on " + appointment.getDateTime() + " is " + eventType)
                 .build();
     }
 
