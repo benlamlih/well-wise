@@ -17,6 +17,10 @@ public class DateTimeUtil {
         return Date.from(localTime.atDate(localDate).atZone(SYSTEM_DEFAULT_ZONE).toInstant());
     }
 
+    public static Date convertToDate(LocalDateTime localDateTime) {
+        return Date.from(localDateTime.atZone(SYSTEM_DEFAULT_ZONE).toInstant());
+    }
+
     public static LocalDate toLocalDate(Date date) {
         return date.toInstant().atZone(SYSTEM_DEFAULT_ZONE).toLocalDate();
     }

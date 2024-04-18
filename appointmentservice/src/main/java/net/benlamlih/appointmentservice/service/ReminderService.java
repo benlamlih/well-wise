@@ -49,7 +49,7 @@ public class ReminderService {
         NotificationEvent event = new NotificationEvent.Builder()
                 .withAppointmentId(appointment.getId())
                 .withEventType(eventType)
-                .withMessage(String.format("Reminder: Your appointment is scheduled for %s. This is a %s.",
+                .withMessage(String.format("Reminder: Your appointment is scheduled for %s.",
                         toLocalDateTime(appointment.getDateTime()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
                 .build();
         kafkaTemplate.send("reminder-topic", event);
