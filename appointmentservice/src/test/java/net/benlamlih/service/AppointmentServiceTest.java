@@ -33,6 +33,7 @@ import net.benlamlih.appointmentservice.dto.AppointmentRequest;
 import net.benlamlih.appointmentservice.model.Appointment;
 import net.benlamlih.appointmentservice.model.AppointmentStatus;
 import net.benlamlih.appointmentservice.model.CancellationMessage;
+import net.benlamlih.appointmentservice.model.NotificationEvent;
 import net.benlamlih.appointmentservice.model.Payment;
 import net.benlamlih.appointmentservice.model.PaymentMethod;
 import net.benlamlih.appointmentservice.model.PaymentResult;
@@ -101,7 +102,7 @@ class AppointmentServiceTest {
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(new Appointment());
         boolean result = appointmentService.bookAppointment(onlineRequest);
 
-        verifyBookingInteractions(DOCTOR_ID_123, true);
+        verifyBookingInteractions(DOCTOR_ID_123, true, true);
         assertTrue(result);
     }
 
@@ -110,16 +111,18 @@ class AppointmentServiceTest {
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(new Appointment());
         boolean result = appointmentService.bookAppointment(physicalRequest);
 
-        verifyBookingInteractions(DOCTOR_ID_124, false);
+        verifyBookingInteractions(DOCTOR_ID_124, false, true);
         assertTrue(result);
     }
 
-    private void verifyBookingInteractions(String doctorId, boolean expectPayment) {
+    private void verifyBookingInteractions(String doctorId, boolean expectPayment, boolean expectNotification) {
         verify(appointmentRepository).save(any(Appointment.class));
         verify(userServiceClient).updateDoctorAvailability(eq(doctorId), any(LocalDate.class), any(LocalTime.class),
                 any(LocalTime.class), eq(false));
-        int times = expectPayment ? 1 : 0;
-        verify(kafkaTemplate, times(times)).send(eq("payment-request-topic"), any(Payment.class));
+        int paymentTimes = expectPayment ? 1 : 0;
+        int notificationTimes = expectNotification ? 1 : 0;
+        verify(kafkaTemplate, times(paymentTimes)).send(eq("payment-request-topic"), any(Payment.class));
+        verify(kafkaTemplate, times(notificationTimes)).send(eq("notification-topic"), any(NotificationEvent.class));
     }
 
     @Test
@@ -128,6 +131,7 @@ class AppointmentServiceTest {
         boolean result = appointmentService.bookAppointment(onlineRequest);
 
         verify(appointmentRepository).save(any(Appointment.class));
+        verify(kafkaTemplate, never()).send(eq("notification-topic"), any(NotificationEvent.class));
         assertFalse(result);
     }
 
@@ -140,6 +144,7 @@ class AppointmentServiceTest {
         boolean result = appointmentService.bookAppointment(onlineRequest);
 
         verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(kafkaTemplate, never()).send(eq("notification-topic"), any(NotificationEvent.class));
         assertFalse(result);
     }
 
@@ -182,6 +187,7 @@ class AppointmentServiceTest {
         verify(kafkaTemplate, times(PaymentMethod.ONLINE.equals(newRequest.getPayment().getMethod()) ? 1 : 0))
                 .send(eq("payment-request-topic"), any(Payment.class));
 
+        verify(kafkaTemplate, times(1)).send(eq("notification-topic"), any(NotificationEvent.class));
         assertTrue(result);
     }
 
@@ -197,6 +203,7 @@ class AppointmentServiceTest {
         verify(appointmentRepository).save(appointmentCaptor.capture());
         assertEquals(AppointmentStatus.CANCELLED, appointmentCaptor.getValue().getStatus());
         verify(kafkaTemplate).send(eq("cancellation-topic"), cancellationMessageCaptor.capture());
+        verify(kafkaTemplate, times(1)).send(eq("notification-topic"), any(NotificationEvent.class));
         assertTrue(result);
     }
 
