@@ -23,23 +23,35 @@ import net.benlamlih.appointmentservice.repository.AppointmentRepository;
 public class ReminderService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReminderService.class);
-    private AppointmentRepository appointmentRepository;
-    private KafkaTemplate<String, NotificationEvent> kafkaTemplate;
+    private final AppointmentRepository appointmentRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public ReminderService(AppointmentRepository appointmentRepository,
+            KafkaTemplate<String, Object> kafkaTemplate) {
+        this.appointmentRepository = appointmentRepository;
+        this.kafkaTemplate = kafkaTemplate;
+    }
 
     // Scheduled to run every hour
     @Scheduled(cron = "0 0 * * * *")
     public void sendReminders() {
         LocalDateTime now = LocalDateTime.now();
+        logger.info("Current time: {}", now);
         LocalDateTime oneDayAhead = now.plusDays(1);
         LocalDateTime oneHourAhead = now.plusHours(1);
+        logger.info("Looking for appointments between now and one day ahead: {} to {}", now, oneDayAhead);
 
         List<Appointment> appointments = appointmentRepository.findAppointmentsBetween(now, oneDayAhead);
         appointments.forEach(appointment -> {
             LocalDateTime appointmentDateTime = toLocalDateTime(appointment.getDateTime());
+            logger.info("Evaluating appointment: {}, scheduled for {}", appointment.getId(), appointmentDateTime);
+
             if (appointmentDateTime.isBefore(oneDayAhead) && appointmentDateTime.isAfter(now.plusMinutes(59))) {
+                logger.info("Sending 24-hour reminder for appointment: {}", appointment.getId());
                 sendReminder(appointment, EventType.REMINDER_24_HOUR);
             }
             if (appointmentDateTime.isBefore(oneHourAhead) && appointmentDateTime.isAfter(now)) {
+                logger.info("Sending 1-hour reminder for appointment: {}", appointment.getId());
                 sendReminder(appointment, EventType.REMINDER_1_HOUR);
             }
         });
