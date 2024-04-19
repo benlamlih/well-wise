@@ -15,12 +15,13 @@ import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import net.benlamlih.appointmentservice.model.Appointment;
@@ -29,6 +30,7 @@ import net.benlamlih.appointmentservice.model.NotificationEvent;
 import net.benlamlih.appointmentservice.repository.AppointmentRepository;
 import net.benlamlih.appointmentservice.service.ReminderService;
 
+@ExtendWith(MockitoExtension.class)
 class ReminderServiceTest {
 
     @Mock
@@ -56,7 +58,7 @@ class ReminderServiceTest {
         when(appointmentRepository.findAppointmentsBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(Arrays.asList(appointmentIn24Hours, appointmentIn1Hour));
 
-       reminderService.sendReminders();
+        reminderService.sendReminders();
 
         verify(kafkaTemplate, times(2)).send(eq("reminder-topic"), notificationEventCaptor.capture());
         List<NotificationEvent> allEvents = notificationEventCaptor.getAllValues();
