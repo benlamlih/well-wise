@@ -5,6 +5,11 @@ services:
     image: eureka-server:latest
     ports:
       - '8761:8761'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://eureka:8761/actuator/health']
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - spring
 
@@ -43,7 +48,7 @@ services:
       - spring
 
   appointmentservice:
-    image: appointmentservice:0.0.1-SNAPSHOT
+    image: appointmentservice:latest
     ports:
       - '8083:8083'
     environment:
@@ -56,9 +61,27 @@ services:
       SPRING_APPLICATION_NAME: appointmentservice
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
     depends_on:
-      - kafka
-      - mongodb
-      - eureka
+      mongodb:
+        condition: service_started
+      kafka:
+        condition: service_started
+      userservice:
+        condition: service_started
+      eureka:
+        condition: service_healthy
+    networks:
+      - spring
+
+  userservice:
+    image: userservice:latest
+    ports:
+      - '8081:8081'
+    environment:
+      SPRING_APPLICATION_NAME: userservice
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
+    depends_on:
+      eureka:
+        condition: service_healthy
     networks:
       - spring
 
